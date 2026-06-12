@@ -1,5 +1,6 @@
 """End-to-end smoke against a running FastAPI server."""
 import json
+import urllib.error
 import urllib.request
 import urllib.parse
 
@@ -24,6 +25,15 @@ def _post(path: str, payload=None, raw_form: dict | None = None) -> dict:
 def _get(path: str) -> dict:
     with urllib.request.urlopen(BASE + path) as resp:
         return json.loads(resp.read())
+
+
+def _get_bytes(path: str) -> tuple[bytes, str, str]:
+    with urllib.request.urlopen(BASE + path) as resp:
+        return (
+            resp.read(),
+            resp.headers.get("Content-Type", ""),
+            resp.headers.get("Content-Disposition", ""),
+        )
 
 
 def main() -> None:
@@ -66,6 +76,20 @@ def main() -> None:
 
     trace = _get(f"/api/sessions/{sid}/trace")
     print(f"trace entries: {len(trace['trace_log'])}")
+
+    data, ctype, dispo = _get_bytes(f"/api/sessions/{sid}/export/docx")
+    assert data[:2] == b"PK", "export must be a zip container (docx)"
+    assert "wordprocessingml" in ctype, ctype
+    assert dispo.startswith("attachment"), dispo
+    print(f"export: {len(data)} bytes docx ({dispo})")
+
+    s2 = _post("/api/sessions")
+    try:
+        _get_bytes(f"/api/sessions/{s2['session_id']}/export/docx")
+        raise AssertionError("expected 404 for a draftless session")
+    except urllib.error.HTTPError as e:
+        assert e.code == 404, e.code
+    print("export 404 on draftless session: OK")
     print("HTTP SMOKE PASSED")
 
 

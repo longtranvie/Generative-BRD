@@ -5,6 +5,7 @@ import hmac
 import io
 import json
 import os
+import re
 import sqlite3
 import time
 import uuid
@@ -22,13 +23,14 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from pypdf import PdfReader
 
 from graph.builder import GRAPH, BASE_TEMPLATE, CHECKPOINT_DB
 from graph.llm import get_client
 from graph.vectorstore import reset_session
+from export_docx import build_brd_docx
 
 # Repo root = parent of backend/. Used to safely serve source files to the
 # frontend's "Code" tab.
@@ -122,6 +124,8 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Lets the browser read the download filename on the docx export.
+    expose_headers=["Content-Disposition"],
 )
 
 
@@ -355,6 +359,24 @@ def delete_session(session_id: str):
         raise HTTPException(500, f"Could not delete session: {e}")
     reset_session(session_id)
     return {"deleted": session_id}
+
+
+@app.get("/api/sessions/{session_id}/export/docx")
+def export_docx_endpoint(session_id: str):
+    """Download the latest draft as a Word document."""
+    config = {"configurable": {"thread_id": session_id}}
+    vals = GRAPH.get_state(config).values or {}
+    try:
+        data = build_brd_docx(vals)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    stem = Path(vals.get("source_filename") or "").stem
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", stem).strip("-.") or session_id[:8]
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="BRD-{slug}.docx"'},
+    )
 
 
 @app.post("/api/sessions/{session_id}/upload")
