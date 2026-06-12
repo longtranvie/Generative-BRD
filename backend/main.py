@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -25,7 +26,21 @@ SOURCE_ALLOWED_EXTS = {".py", ".txt", ".md", ".ts", ".tsx", ".js", ".jsx", ".jso
 SOURCE_DENY_SUBSTRINGS = ("node_modules", ".venv", ".next", "checkpoints.db", "__pycache__")
 
 
-app = FastAPI(title="BRD Agent")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    yield
+    # graph.builder enters the SqliteSaver context manager at import time and
+    # stashes it on the compiled graph; close it so the checkpoint DB releases
+    # its connection on shutdown instead of relying on process teardown.
+    cm = getattr(GRAPH, "_checkpointer_cm", None)
+    if cm is not None:
+        try:
+            cm.__exit__(None, None, None)
+        except Exception:
+            pass
+
+
+app = FastAPI(title="BRD Agent", lifespan=_lifespan)
 
 # CORS_ORIGINS is a comma-separated list of allowed origins. If unset, falls
 # back to "*" so local dev works without configuration. In production, set it
