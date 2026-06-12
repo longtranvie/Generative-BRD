@@ -1,17 +1,21 @@
 """FastAPI entry point. Run with:
     .venv/bin/uvicorn main:app --reload --port 8000
 """
+import hmac
 import io
 import json
 import os
 import sqlite3
+import time
 import uuid
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pypdf import PdfReader
 
@@ -43,6 +47,61 @@ async def _lifespan(_app: FastAPI):
 
 app = FastAPI(title="BRD Agent", lifespan=_lifespan)
 
+# ─── Access gate + rate limit ───────────────────────────────────────
+# APP_PASSWORD moves the demo's password check server-side: when set, every
+# /api route (except health and the auth check itself) requires a matching
+# X-App-Token header. When unset (local dev / stub mode) the API stays open
+# and the frontend gate auto-unlocks. The previous client-only gate shipped
+# its password in the JS bundle and left the API itself wide open.
+
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
+_AUTH_EXEMPT_PATHS = {"/api/health", "/api/auth/check"}
+
+# Naive in-process sliding window per client IP, mutating methods only.
+# Enough to stop a key-burning loop; swap for slowapi/redis if this ever
+# runs more than one process.
+_RATE_WINDOW_SECONDS = 60.0
+_RATE_MAX_MUTATIONS = 30
+_rate_buckets: dict[str, deque] = defaultdict(deque)
+
+
+def _token_ok(request: Request) -> bool:
+    token = request.headers.get("x-app-token", "")
+    return hmac.compare_digest(token.encode(), APP_PASSWORD.encode())
+
+
+# Registered BEFORE CORSMiddleware is added so CORS wraps it — 401/429
+# responses still get CORS headers and stay readable by the browser.
+@app.middleware("http")
+async def _gate(request: Request, call_next):
+    path = request.url.path
+    # CORS preflights carry no custom headers; let CORSMiddleware answer them.
+    if request.method == "OPTIONS" or not path.startswith("/api/") or path in _AUTH_EXEMPT_PATHS:
+        return await call_next(request)
+
+    if APP_PASSWORD and not _token_ok(request):
+        return JSONResponse(
+            {"detail": "Invalid or missing X-App-Token."}, status_code=401
+        )
+
+    if request.method in ("POST", "DELETE"):
+        ip = request.client.host if request.client else "unknown"
+        bucket = _rate_buckets[ip]
+        now = time.monotonic()
+        while bucket and now - bucket[0] > _RATE_WINDOW_SECONDS:
+            bucket.popleft()
+        if len(bucket) >= _RATE_MAX_MUTATIONS:
+            return JSONResponse(
+                {"detail": "Too many requests — please slow down."},
+                status_code=429,
+                headers={"Retry-After": "60"},
+            )
+        bucket.append(now)
+
+    return await call_next(request)
+
+
 # CORS_ORIGINS is a comma-separated list of allowed origins. If unset, falls
 # back to "*" so local dev works without configuration. In production, set it
 # explicitly to your frontend URL (e.g. "https://brd-frontend.up.railway.app").
@@ -57,6 +116,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/api/auth/check")
+def auth_check(request: Request):
+    """Tell the frontend gate whether a password is required and, if a token
+    was sent, whether it is valid. Exempt from the gate middleware so the
+    gate UI can probe before the user is authenticated."""
+    if not APP_PASSWORD:
+        return {"auth_required": False, "ok": True}
+    return {"auth_required": True, "ok": _token_ok(request)}
 
 
 # ─── Input validation ──────────────────────────────────────────────

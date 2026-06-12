@@ -70,6 +70,10 @@ cd backend
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 export OPENAI_API_KEY=sk-...            # optional; omit to run in stub mode
+export APP_PASSWORD=...                 # optional; when set, every /api call
+                                        # must carry X-App-Token — the frontend
+                                        # gate prompts for it. Omit for open
+                                        # local dev (gate auto-unlocks).
 .venv/bin/uvicorn main:app --port 8765 --reload
 
 # Frontend (port 3000)

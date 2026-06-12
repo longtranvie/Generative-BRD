@@ -2,42 +2,55 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-
-const STORAGE_KEY = "brd_app_unlocked_v1";
-const PASSWORD = "pass123";
+import { checkAuth, storeToken } from "@/lib/api";
 
 export default function PasswordGate({ children }: { children: React.ReactNode }) {
   const [unlocked, setUnlocked] = useState<boolean>(false);
   const [checked, setChecked] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
-  const [error, setError] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
+  // The password is enforced by the backend (APP_PASSWORD env). On mount we
+  // probe it: no password configured, or a previously stored token is still
+  // valid -> straight through.
   useEffect(() => {
-    try {
-      if (window.localStorage.getItem(STORAGE_KEY) === "1") {
-        setUnlocked(true);
-      }
-    } catch {
-      /* localStorage blocked — show the gate */
-    }
-    setChecked(true);
+    let cancelled = false;
+    checkAuth()
+      .then((r) => {
+        if (!cancelled && (!r.auth_required || r.ok)) setUnlocked(true);
+      })
+      .catch(() => {
+        /* backend unreachable — keep the gate up; submit will surface it */
+      })
+      .finally(() => {
+        if (!cancelled) setChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Avoid a brief flash of the gate while we read localStorage.
+  // Avoid a brief flash of the gate while we probe the backend.
   if (!checked) return null;
   if (unlocked) return <>{children}</>;
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (input === PASSWORD) {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, "1");
-      } catch {
-        /* session-only if storage blocked */
+    setSubmitting(true);
+    setError(null);
+    try {
+      const r = await checkAuth(input);
+      if (!r.auth_required || r.ok) {
+        storeToken(input);
+        setUnlocked(true);
+      } else {
+        setError("Wrong password.");
       }
-      setUnlocked(true);
-    } else {
-      setError(true);
+    } catch {
+      setError("Could not reach the backend to verify the password.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -76,18 +89,20 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
           value={input}
           onChange={(e) => {
             setInput(e.target.value);
-            setError(false);
+            setError(null);
           }}
           autoFocus
         />
         {error && (
-          <div className="mt-2 text-xs text-danger font-semibold">
-            Wrong password.
-          </div>
+          <div className="mt-2 text-xs text-danger font-semibold">{error}</div>
         )}
 
-        <button type="submit" className="btn-cta w-full justify-center mt-4">
-          Unlock →
+        <button
+          type="submit"
+          className="btn-cta w-full justify-center mt-4"
+          disabled={submitting}
+        >
+          {submitting ? "Checking…" : "Unlock →"}
         </button>
 
         <div className="mt-5 pt-4 border-t border-line text-center">

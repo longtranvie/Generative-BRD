@@ -1,6 +1,47 @@
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8765";
 
+// ─── Auth token ──────────────────────────────────────────────────────
+// The backend enforces the demo password (APP_PASSWORD env) server-side;
+// every request carries the token the user entered at the gate.
+
+const TOKEN_KEY = "brd_app_token";
+
+export function getStoredToken(): string {
+  try {
+    return window.localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function storeToken(token: string) {
+  try {
+    window.localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    /* storage blocked — token lives for this page load only */
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const t = getStoredToken();
+  return t ? { "X-App-Token": t } : {};
+}
+
+export interface AuthCheck {
+  auth_required: boolean;
+  ok: boolean;
+}
+
+/** Probe the gate. With an explicit token, validates that token;
+ *  otherwise validates the stored one (if any). */
+export async function checkAuth(token?: string): Promise<AuthCheck> {
+  const headers: Record<string, string> = {};
+  const t = token !== undefined ? token : getStoredToken();
+  if (t) headers["X-App-Token"] = t;
+  return json(await fetch(`${API_BASE}/api/auth/check`, { headers }));
+}
+
 export type Emphasis = "must_have" | "good_to_have" | "can_live_with" | "dont_need";
 export type SessionStatus = "DRAFT_1" | "FEEDBACK_1" | "DRAFT_2" | "FEEDBACK_2" | "FINAL";
 
@@ -48,7 +89,7 @@ export interface SessionListItem {
 }
 
 export async function listSessions(): Promise<{ sessions: SessionListItem[] }> {
-  return json(await fetch(`${API_BASE}/api/sessions`));
+  return json(await fetch(`${API_BASE}/api/sessions`, { headers: authHeaders() }));
 }
 
 export interface CheckpointMeta {
@@ -81,7 +122,12 @@ async function json<T>(res: Response): Promise<T> {
 }
 
 export async function createSession(): Promise<{ session_id: string }> {
-  return json(await fetch(`${API_BASE}/api/sessions`, { method: "POST" }));
+  return json(
+    await fetch(`${API_BASE}/api/sessions`, {
+      method: "POST",
+      headers: authHeaders(),
+    }),
+  );
 }
 
 export async function deleteSession(
@@ -90,6 +136,7 @@ export async function deleteSession(
   return json(
     await fetch(`${API_BASE}/api/sessions/${sessionId}`, {
       method: "DELETE",
+      headers: authHeaders(),
     }),
   );
 }
@@ -104,6 +151,7 @@ export async function uploadText(
     await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
       method: "POST",
       body: form,
+      headers: authHeaders(),
     }),
   );
 }
@@ -118,6 +166,7 @@ export async function uploadFile(
     await fetch(`${API_BASE}/api/sessions/${sessionId}/upload`, {
       method: "POST",
       body: form,
+      headers: authHeaders(),
     }),
   );
 }
@@ -129,7 +178,7 @@ export async function submitEmphasis(
   return json(
     await fetch(`${API_BASE}/api/sessions/${sessionId}/emphasis`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ emphasis }),
     }),
   );
@@ -142,7 +191,7 @@ export async function submitFeedback(
   return json(
     await fetch(`${API_BASE}/api/sessions/${sessionId}/feedback`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ feedback }),
     }),
   );
@@ -154,24 +203,37 @@ export async function finalizeSession(
   return json(
     await fetch(`${API_BASE}/api/sessions/${sessionId}/finalize`, {
       method: "POST",
+      headers: authHeaders(),
     }),
   );
 }
 
 export async function getState(sessionId: string): Promise<SessionSnapshot> {
-  return json(await fetch(`${API_BASE}/api/sessions/${sessionId}/state`));
+  return json(
+    await fetch(`${API_BASE}/api/sessions/${sessionId}/state`, {
+      headers: authHeaders(),
+    }),
+  );
 }
 
 export async function getTrace(
   sessionId: string,
 ): Promise<{ trace_log: TraceEntry[] }> {
-  return json(await fetch(`${API_BASE}/api/sessions/${sessionId}/trace`));
+  return json(
+    await fetch(`${API_BASE}/api/sessions/${sessionId}/trace`, {
+      headers: authHeaders(),
+    }),
+  );
 }
 
 export async function getHistory(
   sessionId: string,
 ): Promise<{ checkpoints: CheckpointMeta[] }> {
-  return json(await fetch(`${API_BASE}/api/sessions/${sessionId}/history`));
+  return json(
+    await fetch(`${API_BASE}/api/sessions/${sessionId}/history`, {
+      headers: authHeaders(),
+    }),
+  );
 }
 
 export interface SourceFile {
@@ -183,5 +245,5 @@ export interface SourceFile {
 
 export async function getSource(path: string): Promise<SourceFile> {
   const url = `${API_BASE}/api/source?path=${encodeURIComponent(path)}`;
-  return json(await fetch(url));
+  return json(await fetch(url, { headers: authHeaders() }));
 }
