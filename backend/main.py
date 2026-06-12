@@ -251,16 +251,19 @@ def list_sessions(limit: int = 50):
 
 
 @app.post("/api/sessions/{session_id}/upload")
-async def upload(
+def upload(
     session_id: str,
     file: Optional[UploadFile] = File(None),
     text: Optional[str] = Form(None),
 ):
+    # Must stay a sync `def`: the body blocks on GRAPH.invoke and an LLM call,
+    # so it has to run in the threadpool to keep the event loop (and /state
+    # polling for the live loader) responsive.
     if file is None and not text:
         raise HTTPException(400, "Provide either a file or a text body.")
 
     if file is not None:
-        data = await file.read()
+        data = file.file.read()
         source_text = _extract_text(file, data)
         filename = file.filename
     else:
