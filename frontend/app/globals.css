@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #ffffff;
+  --bg2: #f8faff;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --accent: #4f46e5;
+  --accent2: #0891b2;
+  --accent3: #7c3aed;
+  --text: #0f172a;
+  --muted: #64748b;
+}
+
+html, body {
+  background: var(--bg2);
+  color: var(--text);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* ── Background blobs (Bit Notice signature) ── */
+.blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(130px);
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+}
+.blob-1 { width: 700px; height: 700px; background: var(--accent); top: -260px; left: -260px; }
+.blob-2 { width: 600px; height: 600px; background: var(--accent2); bottom: -220px; right: -220px; }
+.blob-3 { width: 420px; height: 420px; background: var(--accent3); top: 40%; left: 50%; transform: translateX(-50%); opacity: 0.03; }
+
+/* ── Typography for rendered drafts ── */
+.brd-prose h1 {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -.03em;
+  color: var(--text);
+  margin: 0 0 1rem;
+}
+.brd-prose h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--text);
+  margin: 1.25rem 0 .35rem;
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+}
+.brd-prose h2 em {
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(79,70,229,.08);
+  padding: 2px 9px;
+  border-radius: 100px;
+  font-style: normal;
+}
+.brd-prose p { margin: .25rem 0; line-height: 1.6; font-size: .9rem; color: #1e293b; }
+.brd-prose em { color: var(--muted); font-style: italic; font-size: .78rem; }
+
+/* ── Scrollbar polish ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 100px; }
+::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+/* ── Reusable bits ── */
+.btn-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 22px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: .88rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(79,70,229,.22);
+  transition: opacity .2s, transform .15s, box-shadow .2s;
+}
+.btn-cta:hover { opacity: .92; transform: translateY(-1px); box-shadow: 0 8px 22px rgba(79,70,229,.28); }
+.btn-cta:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: #f5f3ff; }
+
+.card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  transition: box-shadow .2s, border-color .2s, transform .2s;
+}
+.card-hover:hover { box-shadow: 0 8px 28px rgba(79,70,229,.10); border-color: #c7d2fe; transform: translateY(-2px); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 4px 12px;
+}
+.chip-accent {
+  color: var(--accent);
+  background: rgba(79,70,229,.06);
+  border-color: rgba(79,70,229,.18);
+}
+.chip-good {
+  color: #047857;
+  background: rgba(5,150,105,.08);
+  border-color: rgba(5,150,105,.2);
+}
+
+.topbar {
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}

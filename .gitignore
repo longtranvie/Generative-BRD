@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# LangGraph checkpoint store (created at runtime; volume-mounted in prod)
+backend/checkpoints.db
+backend/checkpoints.db-shm
+backend/checkpoints.db-wal
+
+# Node
+node_modules/
+.next/
+out/
+npm-debug.log*
+*.tsbuildinfo
+
+# OS / editors
+.DS_Store
+*.swp
+.idea/
+.vscode/

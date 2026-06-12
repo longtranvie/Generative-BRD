@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+langgraph
+langgraph-checkpoint-sqlite
+langchain-text-splitters
+openai
+chromadb
+pypdf
+tiktoken
+pydantic
+python-multipart
