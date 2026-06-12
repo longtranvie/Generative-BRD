@@ -13,6 +13,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+
+# Load backend/.env before anything reads the environment: graph.builder
+# reads CHECKPOINT_DB_PATH at import time and APP_PASSWORD is read below.
+# The .env file is gitignored; this is a no-op when it doesn't exist.
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
 from fastapi import FastAPI, Request, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

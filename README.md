@@ -74,6 +74,8 @@ export APP_PASSWORD=...                 # optional; when set, every /api call
                                         # must carry X-App-Token — the frontend
                                         # gate prompts for it. Omit for open
                                         # local dev (gate auto-unlocks).
+# Tip: put these in backend/.env (gitignored) — main.py auto-loads it,
+# which is friendlier than session env vars on Windows.
 .venv/bin/uvicorn main:app --port 8765 --reload
 
 # Frontend (port 3000)

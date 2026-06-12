@@ -9,3 +9,5 @@ pypdf
 tiktoken
 pydantic
 python-multipart
+python-docx
+python-dotenv
