@@ -109,6 +109,7 @@ an API key (stub mode) — set `OPENAI_API_KEY` for real Drafter/Critic calls.
 | GET  | `/api/sessions/{id}/state` | Current snapshot (status, current_node, next_nodes, drafts, trace) |
 | GET  | `/api/sessions/{id}/trace` | Full trace log |
 | GET  | `/api/sessions/{id}/history` | Every checkpoint LangGraph recorded for this thread (time-travel) |
+| GET  | `/api/sessions/{id}/export/docx` | Download the latest draft as a Word document |
 
 ## Things deliberately not done
 
