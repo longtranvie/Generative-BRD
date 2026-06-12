@@ -2,7 +2,7 @@
 
 import React from "react";
 
-const REPO_URL = "https://github.com/shreyas12/brd-agent";
+const REPO_URL = "https://github.com/longtranvie/Generative-BRD";
 const BLOB = `${REPO_URL}/blob/main`;
 
 type FileLink = { path: string; label: string; note: string };
