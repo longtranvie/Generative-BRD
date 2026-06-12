@@ -31,9 +31,12 @@ def main() -> None:
     sid = s["session_id"]
     print(f"session: {sid}")
 
+    # Must clear the upload preflight gate: >= 120 chars AND >= 25 words.
     text = (
-        "ACME Corp needs an internal expense portal. Employees submit, approvers review, "
-        "finance audits. SSO required. Reporting dashboards monthly. Mobile-friendly."
+        "ACME Corp needs an internal expense portal. Employees submit expenses, "
+        "approvers review them, and finance audits the trail every month. SSO is "
+        "required for login. Reporting dashboards refresh monthly for finance "
+        "leadership. The portal must be mobile-friendly and accessible."
     )
     up = _post(f"/api/sessions/{sid}/upload", raw_form={"text": text})
     print(f"upload: status={up['status']} current_node={up['current_node']} awaiting={up.get('awaiting')}")
