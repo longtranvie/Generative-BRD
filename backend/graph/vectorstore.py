@@ -7,7 +7,6 @@ is fine because chunks are re-derived deterministically from source_text on
 each session, and the LangGraph checkpointer is the durable layer.
 """
 import hashlib
-from typing import Iterable
 
 import chromadb
 
@@ -81,6 +80,21 @@ def add_chunks(session_id: str, chunks: list[dict]) -> dict:
         metadatas=[{"char_start": c["char_start"], "char_end": c["char_end"]} for c in chunks],
     )
     return {"count": len(chunks), "stub": not has_api_key()}
+
+
+def ensure_session(session_id: str, chunks: list[dict]) -> bool:
+    """Re-populate the session collection from checkpointed chunks if empty.
+
+    Chroma is in-memory by design, so a process restart wipes it while the
+    LangGraph checkpoint (which holds the chunks) survives. Without this,
+    resuming an old session would silently degrade retrieval to the callers'
+    positional fallback. Returns True if a rehydration happened.
+    """
+    col = _client.get_or_create_collection(name=_collection_name(session_id))
+    if col.count() > 0 or not chunks:
+        return False
+    add_chunks(session_id, chunks)
+    return True
 
 
 def query(session_id: str, text: str, k: int = 5) -> list[str]:

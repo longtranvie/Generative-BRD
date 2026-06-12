@@ -1,5 +1,5 @@
 from graph.nodes._helpers import now_iso, make_trace
-from graph.vectorstore import query
+from graph.vectorstore import ensure_session, query
 
 
 def retriever(state: dict) -> dict:
@@ -7,6 +7,10 @@ def retriever(state: dict) -> dict:
     mutated = state.get("mutated_template") or []
     chunks = state.get("chunks") or []
     session_id = state.get("session_id") or "default"
+
+    # The vector store is in-memory; if the server restarted since the
+    # embedder ran, re-populate it from the checkpointed chunks.
+    rehydrated = ensure_session(session_id, chunks)
 
     retrieved: dict[str, list[str]] = {}
     per_section_k = 5
@@ -23,12 +27,14 @@ def retriever(state: dict) -> dict:
     trace = make_trace(
         "retriever",
         started,
-        input_summary=f"{len(mutated)} sections, {len(chunks)} chunks indexed",
+        input_summary=f"{len(mutated)} sections, {len(chunks)} chunks indexed"
+        + (" (rehydrated after restart)" if rehydrated else ""),
         output_summary=f"{total_chunk_refs} chunk references across {len(retrieved)} sections (k={per_section_k})",
         payload={
             "retrieved_by_section": retrieved,
             "k": per_section_k,
             "queries": {s["id"]: s.get("retrieval_query") for s in mutated},
+            "rehydrated": rehydrated,
         },
     )
     return {
