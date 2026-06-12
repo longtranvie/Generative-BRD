@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { Emphasis, SessionSnapshot, TemplateSection } from "@/lib/api";
+import { exportDocx } from "@/lib/api";
 import EmphasisDial from "./EmphasisDial";
 import DraftView from "./DraftView";
 
@@ -25,6 +26,8 @@ export default function ChatPane({
   const [pasted, setPasted] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
   const [feedback, setFeedback] = useState<string>("");
+  const [exporting, setExporting] = useState<boolean>(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Step: pre-session / pre-upload
   if (!snapshot) {
@@ -111,6 +114,19 @@ export default function ChatPane({
   const showFeedback = status === "FEEDBACK_1" || status === "FEEDBACK_2";
   const isFinal = status === "FINAL";
 
+  async function handleExport() {
+    if (!snapshot) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      await exportDocx(snapshot.session_id);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="card p-6 md:p-7">
@@ -123,8 +139,23 @@ export default function ChatPane({
               <span className="chip">attempt {snapshot.attempt_number}</span>
             )}
           </div>
-          {isFinal && <span className="chip chip-good">✓ finalized</span>}
+          <div className="flex items-center gap-2">
+            {isFinal && <span className="chip chip-good">✓ finalized</span>}
+            {draftMd && (
+              <button
+                type="button"
+                className="chip hover:text-accent hover:border-accent transition disabled:opacity-50"
+                disabled={exporting}
+                onClick={handleExport}
+              >
+                {exporting ? "Exporting…" : "⬇ Download .docx"}
+              </button>
+            )}
+          </div>
         </div>
+        {exportError && (
+          <div className="text-xs text-danger mb-3">{exportError}</div>
+        )}
         <div className="max-h-[58vh] overflow-auto pr-2">
           <DraftView markdown={draftMd} />
         </div>

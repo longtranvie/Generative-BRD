@@ -247,3 +247,34 @@ export async function getSource(path: string): Promise<SourceFile> {
   const url = `${API_BASE}/api/source?path=${encodeURIComponent(path)}`;
   return json(await fetch(url, { headers: authHeaders() }));
 }
+
+/** Download the latest draft as .docx. Fetched as a blob (not a bare link)
+ *  so the X-App-Token header can ride along when the password gate is on. */
+export async function exportDocx(sessionId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/export/docx`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    let message = `${res.status} ${res.statusText}: ${body}`;
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed && typeof parsed.detail === "string") message = parsed.detail;
+    } catch {
+      // not JSON; keep the default
+    }
+    throw new Error(message);
+  }
+  const blob = await res.blob();
+  const dispo = res.headers.get("Content-Disposition") || "";
+  const match = dispo.match(/filename="?([^";]+)"?/);
+  const filename = match ? match[1] : "BRD.docx";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
