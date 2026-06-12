@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { listSessions, type SessionListItem } from "@/lib/api";
+import { deleteSession, listSessions, type SessionListItem } from "@/lib/api";
 
 const STATUS_CHIP: Record<string, { label: string; cls: string }> = {
   DRAFT_1: { label: "drafting v1", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
@@ -26,6 +26,24 @@ export default function SessionSidebar({
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(e: React.MouseEvent, sessionId: string) {
+    e.stopPropagation();
+    if (!window.confirm("Delete this session permanently? Its checkpoints and drafts will be removed.")) return;
+    setDeletingId(sessionId);
+    try {
+      await deleteSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+      // Deleting the open session leaves the main pane pointing at dead
+      // state — reset to a fresh one.
+      if (sessionId === currentSessionId) onNew();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -70,7 +88,22 @@ export default function SessionSidebar({
           const isCurrent = s.session_id === currentSessionId;
           const chip = s.status ? STATUS_CHIP[s.status] : null;
           return (
-            <li key={s.session_id}>
+            <li key={s.session_id} className="relative group">
+              <button
+                type="button"
+                aria-label="Delete session"
+                title="Delete session"
+                disabled={deletingId === s.session_id}
+                onClick={(e) => handleDelete(e, s.session_id)}
+                className={
+                  "absolute top-1.5 right-1.5 z-10 w-5 h-5 items-center justify-center rounded border text-[0.72rem] leading-none transition " +
+                  (deletingId === s.session_id
+                    ? "flex border-line bg-bg2 text-muted"
+                    : "hidden group-hover:flex border-line bg-bg2 text-muted hover:text-danger hover:border-danger/40")
+                }
+              >
+                ×
+              </button>
               <button
                 type="button"
                 onClick={() => onSelect(s.session_id)}

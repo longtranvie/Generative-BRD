@@ -17,6 +17,7 @@ from pypdf import PdfReader
 
 from graph.builder import GRAPH, BASE_TEMPLATE, CHECKPOINT_DB
 from graph.llm import get_client
+from graph.vectorstore import reset_session
 
 # Repo root = parent of backend/. Used to safely serve source files to the
 # frontend's "Code" tab.
@@ -263,6 +264,21 @@ def list_sessions(limit: int = 50):
             "draft_preview": draft[:240],
         })
     return {"sessions": out}
+
+
+@app.delete("/api/sessions/{session_id}")
+def delete_session(session_id: str):
+    """Remove every checkpoint for this thread plus its vector collection.
+
+    Without this, checkpoints.db grows unboundedly — there was no way to
+    drop a session once created.
+    """
+    try:
+        GRAPH.checkpointer.delete_thread(session_id)
+    except Exception as e:
+        raise HTTPException(500, f"Could not delete session: {e}")
+    reset_session(session_id)
+    return {"deleted": session_id}
 
 
 @app.post("/api/sessions/{session_id}/upload")

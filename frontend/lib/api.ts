@@ -84,6 +84,16 @@ export async function createSession(): Promise<{ session_id: string }> {
   return json(await fetch(`${API_BASE}/api/sessions`, { method: "POST" }));
 }
 
+export async function deleteSession(
+  sessionId: string,
+): Promise<{ deleted: string }> {
+  return json(
+    await fetch(`${API_BASE}/api/sessions/${sessionId}`, {
+      method: "DELETE",
+    }),
+  );
+}
+
 export async function uploadText(
   sessionId: string,
   text: string,
